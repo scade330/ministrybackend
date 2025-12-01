@@ -22,12 +22,17 @@ const PORT = process.env.PORT || 8000;
 app.use(express.json());
 app.use(cookieParser());
 
-// CORS configuration for frontend
-app.use(cors({
-  origin: "https://clinic-frontend-orcin.vercel.app", // Replace with your frontend URL
+// --- CORS configuration ---
+const corsOptions = {
+  origin: "https://clinic-frontend-orcin.vercel.app", // Frontend URL
   credentials: true, // Allow cookies
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // Explicitly allow methods
-}));
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // Allowed HTTP methods
+};
+
+app.use(cors(corsOptions));
+
+// Handle OPTIONS preflight requests for all API routes
+app.options(/^\/api\/.*$/, cors(corsOptions));
 
 // --- Health check route ---
 app.get("/healthz", (req, res) => res.status(200).send("OK"));
@@ -46,12 +51,12 @@ const __dirname = path.dirname(__filename);
 const frontendBuildPath = path.join(__dirname, "../frontend/dist");
 app.use(express.static(frontendBuildPath));
 
-// React Router fallback for all non-API routes
+// React Router fallback for non-API routes
 app.get(/^\/(?!api).*/, (req, res) => {
   res.sendFile(path.join(frontendBuildPath, "index.html"));
 });
 
-// Catch-all for unmatched API routes/methods (405)
+// --- Catch-all for unmatched API methods (405) ---
 app.all(/^\/api\/.*$/, (req, res) => {
   res.status(405).send("Method Not Allowed");
 });
