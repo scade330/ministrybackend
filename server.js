@@ -18,12 +18,18 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 8000;
 
-// --- Middlewares ---
+// --- Middleware ---
 app.use(express.json());
 app.use(cookieParser());
-app.use(cors({ origin: "*", credentials: true })); // Allow all origins for testing
 
-// --- Health check route for Render ---
+// CORS configuration for frontend
+app.use(cors({
+  origin: "https://clinic-frontend-orcin.vercel.app", // Replace with your frontend URL
+  credentials: true, // Allow cookies
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // Explicitly allow methods
+}));
+
+// --- Health check route ---
 app.get("/healthz", (req, res) => res.status(200).send("OK"));
 
 // --- API Routes ---
@@ -33,20 +39,24 @@ app.use("/api/sales", salesRouter);
 app.use("/api/user", userRouter);
 app.use("/api/post", postRouter);
 
-// --- Serve Vite/React frontend ---
+// --- Serve React frontend ---
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Frontend build folder (Vite default: dist)
 const frontendBuildPath = path.join(__dirname, "../frontend/dist");
 app.use(express.static(frontendBuildPath));
 
-// Serve index.html for all non-API routes (for React Router)
+// React Router fallback for all non-API routes
 app.get(/^\/(?!api).*/, (req, res) => {
   res.sendFile(path.join(frontendBuildPath, "index.html"));
 });
 
-// --- Start server after DB connection ---
+// Catch-all for unmatched API routes/methods (405)
+app.all(/^\/api\/.*$/, (req, res) => {
+  res.status(405).send("Method Not Allowed");
+});
+
+// --- Start server ---
 const startServer = async () => {
   try {
     await connectDB();
