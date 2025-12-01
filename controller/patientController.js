@@ -31,14 +31,13 @@ export const registerPatient = async (req, res) => {
 export const getAllPatients = async (req, res) => {
   try {
     const patients = await Patient.find();
-    res.status(200).json({
-      message: "Patients fetched successfully",
-      patients,
-    });
+    res.status(200).json({ patients }); // wrap in object
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
+
+
 
 // Get single patient by ID
 export const getPatientById = async (req, res) => {
