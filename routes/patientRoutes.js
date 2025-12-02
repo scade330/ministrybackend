@@ -12,7 +12,7 @@ import { authenticate } from "../middleware/authMiddleware.js";
 
 const patientRouter = express.Router();
 // Register a new patient
-patientRouter.post("/create",authenticate ,registerPatient);
+patientRouter.post("/create",registerPatient);
 
 // Get all patients
 patientRouter.get("/all", getAllPatients);
@@ -24,15 +24,15 @@ patientRouter.get("/all", getAllPatients);
 
 
 // Search by phone
-patientRouter.get("/search",authenticate, getPatientByPhone);
+patientRouter.get("/search", getPatientByPhone);
 
 // Get single patient by ID
-patientRouter.get("/id/:id",authenticate, getPatientById);
+patientRouter.get("/id/:id", getPatientById);
 
 // Update patient
-patientRouter.put("/id/:id",authenticate, updatePatient);
+patientRouter.put("/id/:id", updatePatient);
 
 // Delete patient
-patientRouter.delete("/id/:id", authenticate ,deletePatient);
+patientRouter.delete("/id/:id" ,deletePatient);
 
 export default patientRouter;
