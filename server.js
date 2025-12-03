@@ -23,15 +23,27 @@ app.use(express.json());
 app.use(cookieParser());
 
 // --- CORS configuration ---
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://clinic-frontend-orcin.vercel.app",
+];
+
 const corsOptions = {
-  origin: "https://clinic-frontend-orcin.vercel.app", // Frontend URL
-  credentials: true, // Allow cookies
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // Allowed HTTP methods
+  origin: function (origin, callback) {
+    // Allow mobile apps, curl, or no-origin requests as well
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
 };
 
 app.use(cors(corsOptions));
 
-// Handle OPTIONS preflight requests for all API routes
+// Handle OPTIONS preflight only for API routes (Express 5 safe)
 app.options(/^\/api\/.*$/, cors(corsOptions));
 
 // --- Health check route ---
