@@ -1,136 +1,230 @@
-import Patient from "../models/Patient.js";
+import PatientClinic2 from "../models/patientsClinic2.js";
 
-// Create a patient (already exists)
+// -----------------------------
+// Register new patient
+// -----------------------------
 export const registerPatient = async (req, res) => {
   try {
-    const patient = new Patient(req.body);
-    await patient.save(); // Mongoose will validate automatically
-
-    res.status(201).json({
-      message: "Patient registered successfully",
-      patient,
+    const patient = new PatientClinic2({
+      ...req.body,
+      createdBy: req.user?.id,
     });
-  } catch (error) {
-    // Send clean error messages
-    if (error.name === "ValidationError") {
-      const messages = Object.values(error.errors).map((val) => val.message);
-      return res.status(400).json({ error: messages });
-    }
 
-    if (error.code === 11000) {
-      // duplicate key (e.g., phone)
-      return res.status(400).json({ error: "Phone number already exists" });
-    }
-
-    res.status(500).json({ error: "Server error" });
+    await patient.save();
+    res.status(201).json({ success: true, patient });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
   }
 };
 
-
-// Get all patients (already exists)
+// -----------------------------
+// Get all patients
+// -----------------------------
 export const getAllPatients = async (req, res) => {
   try {
-    const patients = await Patient.find();
-    res.status(200).json({ patients }); // wrap in object
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    const patients = await PatientClinic2.find().sort({ createdAt: -1 });
+    res.json({ success: true, patients });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
 };
 
-
-
-// Get single patient by ID
+// -----------------------------
+// Get patient by ID
+// -----------------------------
 export const getPatientById = async (req, res) => {
   try {
-    const patient = await Patient.findById(req.params.id);
-    if (!patient) return res.status(404).json({ message: "Patient not found" });
-    res.status(200).json(patient);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// Update patient by ID
-export const updatePatient = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    // Find the patient first
-    const patient = await Patient.findById(id);
-    if (!patient) return res.status(404).json({ message: "Patient not found" });
-
-    // List all fields you want to allow updating
-    const allowedFields = [
-  "firstName",
-  "lastName",
-  "age",
-  "gender",
-  "phone",
-  "address",
-  "medicalHistory",
-  "currentMedications",
-  "allergies",
-  "diagnosis",
-  "physicalExam",
-  "labResults",
-  "treatmentPlan",
-  "nextAppointment", // <--- added
-  "reason",          // <--- added
-];
-
-    // Update fields if provided in request body
-    allowedFields.forEach((field) => {
-      if (req.body[field] !== undefined) {
-        patient[field] = req.body[field];
-      }
-    });
-
-    // Save with validation
-    await patient.save();
-
-    res.status(200).json({
-      message: "Patient updated successfully",
-      patient,
-    });
-  } catch (error) {
-    // Validation errors
-    if (error.name === "ValidationError") {
-      const messages = Object.values(error.errors).map((val) => val.message);
-      return res.status(400).json({ error: messages });
+    const patient = await PatientClinic2.findById(req.params.id);
+    if (!patient) {
+      return res.status(404).json({ success: false, error: "Patient not found" });
     }
-
-    if (error.code === 11000) {
-      return res.status(400).json({ error: "Phone number already exists" });
-    }
-
-    res.status(500).json({ error: "Server error" });
+    res.json({ success: true, patient });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
 };
 
-
-
-// Delete patient by ID
-export const deletePatient = async (req, res) => {
-  try {
-    const patient = await Patient.findByIdAndDelete(req.params.id);
-    if (!patient) return res.status(404).json({ message: "Patient not found" });
-    res.status(200).json({ message: "Patient deleted successfully" });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// Search patient by phone number
+// -----------------------------
+// Get patient by phone
+// -----------------------------
 export const getPatientByPhone = async (req, res) => {
   try {
-    const { phone } = req.query; // get phone from query string
-    if (!phone) return res.status(400).json({ message: "Phone number is required" });
+    const { phone } = req.query;
+    const patient = await PatientClinic2.findOne({ phone });
+    if (!patient) {
+      return res.status(404).json({ success: false, error: "Patient not found" });
+    }
+    res.json({ success: true, patient });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
 
-    const patient = await Patient.findOne({ phone });
-    if (!patient) return res.status(404).json({ message: "Patient not found" });
+// -----------------------------
+// Update patient (general info)
+// -----------------------------
+export const updatePatient = async (req, res) => {
+  try {
+    const patient = await PatientClinic2.findByIdAndUpdate(
+      req.params.id,
+      { ...req.body, updatedBy: req.user?.id },
+      { new: true, runValidators: true }
+    );
 
-    res.status(200).json(patient);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    if (!patient) {
+      return res.status(404).json({ success: false, error: "Patient not found" });
+    }
+
+    res.json({ success: true, patient });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+};
+
+// -----------------------------
+// Add treatment
+// -----------------------------
+export const addTreatment = async (req, res) => {
+  try {
+    const patient = await PatientClinic2.findById(req.params.id);
+    if (!patient) {
+      return res.status(404).json({ success: false, error: "Patient not found" });
+    }
+
+    const { medication, dosage = "None", instructions = "None" } = req.body;
+
+    if (!medication || medication.trim() === "") {
+      return res.status(400).json({ success: false, error: "Medication is required" });
+    }
+
+    patient.treatmentPlan.push({
+      medication,
+      dosage,
+      instructions,
+    });
+
+    await patient.save();
+    res.json({ success: true, patient });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+};
+
+// -----------------------------
+// Remove treatment
+// -----------------------------
+export const removeTreatment = async (req, res) => {
+  try {
+    const patient = await PatientClinic2.findById(req.params.id);
+    if (!patient) {
+      return res.status(404).json({ success: false, error: "Patient not found" });
+    }
+
+    const index = Number(req.params.index);
+    if (isNaN(index) || index < 0 || index >= patient.treatmentPlan.length) {
+      return res.status(400).json({ success: false, error: "Invalid treatment index" });
+    }
+
+    patient.treatmentPlan.splice(index, 1);
+    await patient.save();
+
+    res.json({ success: true, patient });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+};
+
+// -----------------------------
+// Add vaccination
+// -----------------------------
+export const addVaccination = async (req, res) => {
+  try {
+    const patient = await PatientClinic2.findById(req.params.id);
+    if (!patient) {
+      return res.status(404).json({ success: false, error: "Patient not found" });
+    }
+
+    const { vaccineName, doseNumber, dateGiven, administeredBy, notes } = req.body;
+
+    if (!vaccineName || !doseNumber || !dateGiven) {
+      return res.status(400).json({
+        success: false,
+        error: "vaccineName, doseNumber, and dateGiven are required",
+      });
+    }
+
+    patient.vaccinations.push({
+      vaccineName,
+      doseNumber,
+      dateGiven,
+      administeredBy,
+      notes,
+    });
+
+    await patient.save();
+    res.json({ success: true, patient });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+};
+
+// -----------------------------
+// Remove vaccination
+// -----------------------------
+export const removeVaccination = async (req, res) => {
+  try {
+    const patient = await PatientClinic2.findById(req.params.id);
+    if (!patient) {
+      return res.status(404).json({ success: false, error: "Patient not found" });
+    }
+
+    const index = Number(req.params.index);
+    if (isNaN(index) || index < 0 || index >= patient.vaccinations.length) {
+      return res.status(400).json({ success: false, error: "Invalid vaccination index" });
+    }
+
+    patient.vaccinations.splice(index, 1);
+    await patient.save();
+
+    res.json({ success: true, patient });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+};
+
+// -----------------------------
+// Filter patients by provider type
+// -----------------------------
+export const getPatientsByProviderType = async (req, res) => {
+  try {
+    const { type } = req.query;
+
+    const patients = await PatientClinic2.find({
+      healthProviderType: type,
+    }).sort({ createdAt: -1 });
+
+    res.json({ success: true, patients });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+// -----------------------------
+// Delete patient
+// -----------------------------
+export const deletePatient = async (req, res) => {
+  try {
+    const patient = await PatientClinic2.findByIdAndDelete(req.params.id);
+    if (!patient) {
+      return res.status(404).json({ success: false, error: "Patient not found" });
+    }
+
+    res.json({
+      success: true,
+      message: "Patient deleted successfully",
+      deletedBy: req.user?.id,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
 };

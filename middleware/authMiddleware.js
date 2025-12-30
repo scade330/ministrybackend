@@ -4,24 +4,30 @@ import { JWT_SECRET } from "../config/config.js";
 export const authenticate = (req, res, next) => {
   let token;
 
-  // 1. Check Authorization header (Bearer token)
-  if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
+  // 1. Authorization header
+  if (req.headers.authorization?.startsWith("Bearer")) {
     token = req.headers.authorization.split(" ")[1];
   }
 
-  // 2. If no header, check cookies
-  if (!token && req.cookies) {
+  // 2. Cookie
+  if (!token && req.cookies?.token) {
     token = req.cookies.token;
   }
 
-  if (!token) return res.status(403).json({ error: "Access denied, please login" });
+  // 3. No token
+  if (!token) {
+    return res.status(403).json({
+      message: "Access denied, please login",
+    });
+  }
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded; // contains user id
+    req.user = { id: decoded._id };
     next();
   } catch (error) {
-    console.log("Token error:", error.message);
-    return res.status(401).json({ error: "Invalid token" });
+    return res.status(401).json({
+      message: "Invalid or expired token",
+    });
   }
 };

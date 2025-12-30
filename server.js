@@ -7,11 +7,9 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import connectDB from './config/db.js';
 
-import postRouter from './routes/post.js';
 import userRouter from './routes/user.js';
 import patientRouter from './routes/patientRoutes.js';
-import pharmacyrouter from './routes/pharmacyRoutes.js';
-import salesRouter from './routes/saleRoutes.js';
+
 
 dotenv.config();
 
@@ -22,44 +20,34 @@ const PORT = process.env.PORT || 8000;
 app.use(express.json());
 app.use(cookieParser());
 
-// --- CORS configuration ---
+// --- CORS ---
 const allowedOrigins = [
   "http://localhost:5173",
   "https://clinic-frontend-orcin.vercel.app",
 ];
 
-const corsOptions = {
-  origin: function (origin, callback) {
-    // Allow mobile apps, curl, or no-origin requests as well
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS"));
-    }
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    callback(new Error("Not allowed by CORS"));
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-};
+}));
 
-app.use(cors(corsOptions));
-
-// Handle OPTIONS preflight only for API routes (Express 5 safe)
-app.options(/^\/api\/.*$/, cors(corsOptions));
-
-// --- Health check route ---
+// --- Health check ---
 app.get("/healthz", (req, res) => res.status(200).send("OK"));
 
 // --- API Routes ---
-app.use("/api/patients", patientRouter);
-app.use("/api/pharmacy", pharmacyrouter);
-app.use("/api/sales", salesRouter);
+app.use("/api/patientsClinic2", patientRouter);
+
+
 app.use("/api/user", userRouter);
-app.use("/api/post", postRouter);
+
 
 // --- Serve React frontend ---
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
 const frontendBuildPath = path.join(__dirname, "../frontend/dist");
 app.use(express.static(frontendBuildPath));
 
@@ -69,8 +57,9 @@ app.get(/^\/(?!api).*/, (req, res) => {
 });
 
 // --- Catch-all for unmatched API methods (405) ---
-app.all(/^\/api\/.*$/, (req, res) => {
-  res.status(405).send("Method Not Allowed");
+// Use regex that Express accepts
+app.all(/^\/api\/.+$/, (req, res) => {
+  res.status(405).json({ error: `Method ${req.method} not allowed` });
 });
 
 // --- Start server ---

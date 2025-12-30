@@ -1,86 +1,91 @@
-import { JWT_SECRET } from "../config/config.js";
+import jwt from "jsonwebtoken";
 import User from "../models/user.js";
-import jwt from 'jsonwebtoken';
+import { JWT_SECRET } from "../config/config.js";
 
-
-
-
-export const registerUser = async (req, res) => {
-    try {
-    
-
-const {password,username,email} = req.body;
-
-
-const isUserExists = await User.findOne({
-    $or: [
-        { email: email.toLowerCase() },
-        { username: username.toLowerCase() }
-    ]
-});
-
-if (isUserExists) {
-    return res.status(400).send("email or username already exists");
-}
-
-const userInfo = new User({
-    username: username,
-    password: password,
-    email: email
-});
-
-await userInfo.save();
-userInfo.password = undefined;
-
-return res.status(201).send(userInfo);
-
-
-
-    } catch (err) {
-        console.log("error at registerUser", err.message);
-        res.send("something went wrong" + err.message);
-    }
+const createToken = (userId) => {
+  return jwt.sign({ _id: userId }, JWT_SECRET, {
+    expiresIn: "7d",
+  });
 };
 
-
-
-export const LoginUser = async (req, res) => {
+// REGISTER
+export const registerUser = async (req, res) => {
   try {
-    // Fixed destructuring
+    const { email, username, password } = req.body;
+
+    if (!email || !username || !password) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
+    const existingUser = await User.findOne({
+      $or: [
+        { email: email.toLowerCase() },
+        { username: username.toLowerCase() },
+      ],
+    });
+
+    if (existingUser) {
+      return res
+        .status(400)
+        .json({ message: "Email or username already exists" });
+    }
+
+    const user = await User.create({
+      email,
+      username,
+      password,
+    });
+
+    user.password = undefined;
+    res.status(201).json(user);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// LOGIN
+export const loginUser = async (req, res) => {
+  try {
     const { email, password } = req.body;
 
-    const isUserExists = await User.findOne({ email: email.toLowerCase() })
-      .select('+password');
-
-    if (!isUserExists) {
-      return res.status(400).send("Invalid Email please provide a valid email");
+    if (!email || !password) {
+      return res
+        .status(400)
+        .json({ message: "Email and password are required" });
     }
 
-    // Password checking
-    const isPasswordCorrect = await isUserExists.comparePassword(password);
+    const user = await User.findOne({
+      email: email.toLowerCase(),
+    }).select("+password");
 
-    if (!isPasswordCorrect) {
-      return res.status(400).send("Incorrect password");
+    if (!user) {
+      return res.status(400).json({ message: "Invalid email or password" });
     }
 
-const expiresIn = 7 * 24 * 60 * 60; // 7 days
+    const isMatch = await user.comparePassword(password);
 
-const token = jwt.sign({ _id: isUserExists._id }, JWT_SECRET, {
-  expiresIn
-});
+    if (!isMatch) {
+      return res.status(400).json({ message: "Invalid email or password" });
+    }
 
-res.cookie('token', token, {
-  httpOnly: true,
-  secure: false,
-  maxAge: expiresIn * 1000
-});
+    const token = createToken(user._id);
 
-isUserExists.password = undefined;
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
 
-res.status(200).send({ ...isUserExists.toJSON(), expiresIn });
-
-  } catch (err) {
-    console.log("error at loginUser", err);
-    res.status(400).send(err.message);
+    user.password = undefined;
+    res.status(200).json(user);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
+};
+
+// LOGOUT
+export const logoutUser = (req, res) => {
+  res.clearCookie("token");
+  res.status(200).json({ message: "Logged out successfully" });
 };
