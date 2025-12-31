@@ -1,14 +1,14 @@
-import chalk from 'chalk';
-import cookieParser from 'cookie-parser';
-import express from 'express';
-import cors from 'cors';
-import dotenv from 'dotenv';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import connectDB from './config/db.js';
+import chalk from "chalk";
+import cookieParser from "cookie-parser";
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
+import connectDB from "./config/db.js";
 
-import userRouter from './routes/user.js';
-import patientRouter from './routes/patientRoutes.js';
+import userRouter from "./routes/user.js";
+import patientRouter from "./routes/patientRoutes.js";
 
 dotenv.config();
 
@@ -27,20 +27,21 @@ const allowedOrigins = [
 
 const corsOptions = {
   origin: (origin, callback) => {
+    // allow requests with no origin (like Postman)
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error("Not allowed by CORS"));
     }
   },
-  credentials: true,
+  credentials: true, // important for cookies
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
 };
 
 app.use(cors(corsOptions));
 
-// --- Handle preflight requests for all /api routes ---
-app.options(/^\/api\/.*$/, cors(corsOptions));
+// --- Handle preflight OPTIONS requests ---
+app.options(/^\/.*$/, cors(corsOptions));
 
 // --- Health check ---
 app.get("/healthz", (req, res) => res.status(200).send("OK"));
@@ -53,6 +54,7 @@ app.use("/api/user", userRouter);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const frontendBuildPath = path.join(__dirname, "../frontend/dist");
+
 app.use(express.static(frontendBuildPath));
 
 // React Router fallback for non-API routes
@@ -61,7 +63,6 @@ app.get(/^\/(?!api).*/, (req, res) => {
 });
 
 // --- Catch-all for unmatched API methods (405) ---
-// Exclude OPTIONS requests so preflight works
 app.all(/^\/api\/.+$/, (req, res) => {
   if (req.method === "OPTIONS") return res.sendStatus(200);
   res.status(405).json({ error: `Method ${req.method} not allowed` });
