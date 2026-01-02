@@ -1,24 +1,16 @@
 import express from "express";
-import {
-  registerUser,
-  loginUser,
-  logoutUser,
-} from "../controller/userController.js";
 import { authenticate } from "../middleware/authMiddleware.js";
+import {
+  loginUser,
+  getMe,
+} from "../controller/userController.js";
 
-const userRouter = express.Router();
+const  userRouter = express.Router();
 
-// Public routes
-userRouter.post("/register-user", registerUser);
-userRouter.post("/login-user", loginUser);
+// Public
+ userRouter.post("/login-user", loginUser);
 
-// Protected routes
-userRouter.post("/logout-user", authenticate, logoutUser);
-userRouter.get("/me", authenticate, (req, res) => {
-  res.status(200).json({
-    message: "Authenticated user",
-    userId: req.user.id,
-  });
-});
+// Protected
+ userRouter.get("/me", authenticate, getMe);
 
 export default userRouter;

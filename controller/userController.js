@@ -8,7 +8,9 @@ const createToken = (userId) => {
   });
 };
 
-// REGISTER
+/* ------------------------------------------------
+   REGISTER
+------------------------------------------------ */
 export const registerUser = async (req, res) => {
   try {
     const { email, username, password } = req.body;
@@ -43,7 +45,9 @@ export const registerUser = async (req, res) => {
   }
 };
 
-// LOGIN
+/* ------------------------------------------------
+   LOGIN
+------------------------------------------------ */
 export const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -70,11 +74,11 @@ export const loginUser = async (req, res) => {
 
     const token = createToken(user._id);
 
-    // --- Updated cookie settings ---
+    // Cookie for browser auth
     res.cookie("token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production", // true only in prod
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", // allows local dev
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
@@ -85,12 +89,33 @@ export const loginUser = async (req, res) => {
   }
 };
 
-// LOGOUT
+/* ------------------------------------------------
+   GET CURRENT USER  ✅ REQUIRED
+------------------------------------------------ */
+export const getMe = async (req, res) => {
+  try {
+    // req.user is set by authenticate middleware
+    const user = await User.findById(req.user.id).select("-password");
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json(user);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/* ------------------------------------------------
+   LOGOUT
+------------------------------------------------ */
 export const logoutUser = (req, res) => {
   res.clearCookie("token", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
   });
+
   res.status(200).json({ message: "Logged out successfully" });
 };
