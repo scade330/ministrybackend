@@ -34,7 +34,7 @@ app.use(cookieParser());
 ----------------------------- */
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://clinic2-frontend.vercel.app"
+  "https://clinic3backend.vercel.app/"
 ];
 
 const corsOptions = {
