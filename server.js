@@ -33,21 +33,22 @@ app.use(cookieParser());
    CORS configuration
 ----------------------------- */
 const allowedOrigins = [
-  "http://localhost:5173",            // local dev frontend
-  "https://clinic3frontend.vercel.app" // deployed frontend
+  "http://localhost:5173",
+  "https://clinic3frontend.vercel.app"
 ];
 
 const corsOptions = {
   origin: (origin, callback) => {
-    if (!origin) return callback(null, true); // allow Postman, curl
+    if (!origin) return callback(null, true); // Postman / curl
     if (allowedOrigins.includes(origin)) return callback(null, true);
     return callback(new Error("Not allowed by CORS"));
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+  allowedHeaders: ["Content-Type", "Authorization"]
 };
 
+// Apply CORS middleware before routes
 app.use(cors(corsOptions));
 app.options("*", cors(corsOptions)); // handle preflight requests
 
@@ -67,7 +68,7 @@ app.use("/api/patientsClinic2", patientRouter);
 ----------------------------- */
 app.use("/api", (req, res) => {
   res.status(405).json({
-    error: `Method ${req.method} not allowed for this route`,
+    error: `Method ${req.method} not allowed for this route`
   });
 });
 
