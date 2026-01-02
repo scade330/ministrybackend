@@ -39,41 +39,32 @@ app.use(express.json());
 app.use(cookieParser());
 
 /* -----------------------------
-   CORS configuration
+   CORS configuration (works for preflight automatically)
 ----------------------------- */
 const allowedOrigins = [
   "http://localhost:5173", // local dev
   "https://clinic3frontend.vercel.app" // production frontend
 ];
 
-const corsOptions = {
-  origin: (origin, callback) => {
-    // Allow requests with no origin (like Postman or server-to-server)
-    if (!origin) return callback(null, true);
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (Postman / server-to-server)
+      if (!origin) return callback(null, true);
 
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    } else {
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+
       console.log("Blocked by CORS:", origin);
       return callback(new Error("Not allowed by CORS"));
-    }
-  },
-  credentials: true, // required for cookies
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"]
-};
-
-// Apply CORS middleware before routes
-app.use(cors(corsOptions));
-app.options("*", cors(corsOptions)); // preflight requests
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 
 /* -----------------------------
-   Health check
------------------------------ */
-app.get("/healthz", (req, res) => res.status(200).send("OK"));
-
-/* -----------------------------
-   API routes (registered BEFORE frontend static)
+   API routes (preflight handled automatically by cors middleware)
 ----------------------------- */
 app.use("/api/user", userRouter);
 app.use("/api/patientsClinic2", patientRouter);
@@ -83,7 +74,7 @@ app.use("/api/patientsClinic2", patientRouter);
 ----------------------------- */
 app.use("/api", (req, res) => {
   res.status(405).json({
-    error: `Method ${req.method} not allowed for this route`
+    error: `Method ${req.method} not allowed for this route`,
   });
 });
 
