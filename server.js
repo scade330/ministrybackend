@@ -24,6 +24,15 @@ app.use((req, res, next) => {
 });
 
 /* -----------------------------
+   Logging for debugging
+----------------------------- */
+app.use((req, res, next) => {
+  console.log(`Incoming request: ${req.method} ${req.url}`);
+  console.log(`Origin header: ${req.headers.origin}`);
+  next();
+});
+
+/* -----------------------------
    Core middleware
 ----------------------------- */
 app.use(express.json());
@@ -33,24 +42,30 @@ app.use(cookieParser());
    CORS configuration
 ----------------------------- */
 const allowedOrigins = [
-  "http://localhost:5173",
-  "https://clinic3frontend.vercel.app"
+  "http://localhost:5173", // local dev
+  "https://clinic3frontend.vercel.app" // production frontend
 ];
 
 const corsOptions = {
   origin: (origin, callback) => {
-    if (!origin) return callback(null, true); // Postman / curl
-    if (allowedOrigins.includes(origin)) return callback(null, true);
-    return callback(new Error("Not allowed by CORS"));
+    // Allow requests with no origin (like Postman or server-to-server)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      console.log("Blocked by CORS:", origin);
+      return callback(new Error("Not allowed by CORS"));
+    }
   },
-  credentials: true,
+  credentials: true, // required for cookies
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
 };
 
 // Apply CORS middleware before routes
 app.use(cors(corsOptions));
-app.options("*", cors(corsOptions)); // handle preflight requests
+app.options("*", cors(corsOptions)); // preflight requests
 
 /* -----------------------------
    Health check
@@ -58,7 +73,7 @@ app.options("*", cors(corsOptions)); // handle preflight requests
 app.get("/healthz", (req, res) => res.status(200).send("OK"));
 
 /* -----------------------------
-   API routes
+   API routes (registered BEFORE frontend static)
 ----------------------------- */
 app.use("/api/user", userRouter);
 app.use("/api/patientsClinic2", patientRouter);
