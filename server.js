@@ -43,7 +43,7 @@ app.use(cookieParser());
 ----------------------------- */
 const allowedOrigins = [
   "http://localhost:5173", // local dev
-  "https://clinic3frontend.vercel.app" // production frontend
+  "https://ministrybackend.vercel.app" // production frontend
 ];
 
 app.use(
