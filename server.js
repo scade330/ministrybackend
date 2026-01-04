@@ -9,20 +9,20 @@ import { fileURLToPath } from "url";
 import connectDB from "./config/db.js";
 import userRouter from "./routes/user.js";
 import patientRouter from "./routes/patientRoutes.js";
-import dashboardRouter from "./routes/dashboardRoutes.js"; // fixed path
+import dashboardRouter from "./routes/dashboardRoutes.js";
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 8000;
 
-// Remove duplicate slashes
+// Remove duplicate slashes from URLs
 app.use((req, res, next) => {
   req.url = req.url.replace(/\/+/g, "/");
   next();
 });
 
-// Logging
+// Logging middleware
 app.use((req, res, next) => {
   console.log(`Incoming request: ${req.method} ${req.url}`);
   console.log(`Origin header: ${req.headers.origin}`);
@@ -33,21 +33,22 @@ app.use((req, res, next) => {
 app.use(express.json());
 app.use(cookieParser());
 
-// CORS
+// CORS configuration
 const allowedOrigins = [
-  "http://localhost:5173", 
+  "http://localhost:5173",
   "https://ministryfrontend.vercel.app"
 ];
 
+// Let cors handle everything, including preflight
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin) return callback(null, true);
+    if (!origin) return callback(null, true); // allow non-browser clients (Postman, etc.)
     if (allowedOrigins.includes(origin)) return callback(null, true);
     console.log("Blocked by CORS:", origin);
     return callback(new Error("Not allowed by CORS"));
   },
   credentials: true,
-  methods: ["GET","POST","PUT","DELETE","OPTIONS"],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
 
