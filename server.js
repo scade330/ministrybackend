@@ -15,100 +15,94 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 8000;
 
-/* ---------------------------------
-   Normalize URLs
----------------------------------- */
+/* -----------------------------
+   Remove duplicate slashes in URLs
+----------------------------- */
 app.use((req, res, next) => {
   req.url = req.url.replace(/\/+/g, "/");
   next();
 });
 
-/* ---------------------------------
+/* -----------------------------
+   Logging for debugging
+----------------------------- */
+app.use((req, res, next) => {
+  console.log(`Incoming request: ${req.method} ${req.url}`);
+  console.log(`Origin header: ${req.headers.origin}`);
+  next();
+});
+
+/* -----------------------------
    Core middleware
----------------------------------- */
+----------------------------- */
 app.use(express.json());
 app.use(cookieParser());
 
-/* ---------------------------------
-   ✅ CORS — FINAL & SAFE
----------------------------------- */
+/* -----------------------------
+   CORS configuration (works for preflight automatically)
+----------------------------- */
 const allowedOrigins = [
-  "http://localhost:5173",
-  "https://ministryfrontend.vercel.app",
+  "http://localhost:5173", // local dev
+  "https://ministryfrontend.vercel.app" // production frontend
 ];
 
-const corsOptions = {
-  origin: (origin, callback) => {
-    if (!origin) return callback(null, true);
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (Postman / server-to-server)
+      if (!origin) return callback(null, true);
 
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
+      if (allowedOrigins.includes(origin)) return callback(null, true);
 
-    return callback(new Error("Not allowed by CORS"));
-  },
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: [
-    "Content-Type",
-    "Authorization",
-    "X-Requested-With",
-    "Accept",
-  ],
-};
+      console.log("Blocked by CORS:", origin);
+      return callback(new Error("Not allowed by CORS"));
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 
-/* 🔥 CORS before routes */
-app.use(cors(corsOptions));
-
-/* 🔥 VALID preflight handler (RegExp — NO CRASH) */
-app.options(/.*/, cors(corsOptions));
-
-/* ---------------------------------
-   API routes
----------------------------------- */
+/* -----------------------------
+   API routes (preflight handled automatically by cors middleware)
+----------------------------- */
 app.use("/api/user", userRouter);
 app.use("/api/patientsClinic2", patientRouter);
 
-/* ---------------------------------
-   Invalid API route handler
----------------------------------- */
+/* -----------------------------
+   Catch-all for invalid API routes
+----------------------------- */
 app.use("/api", (req, res) => {
   res.status(405).json({
-    error: `Method ${req.method} not allowed`,
+    error: `Method ${req.method} not allowed for this route`,
   });
 });
 
-/* ---------------------------------
-   Serve frontend build (optional)
----------------------------------- */
+/* -----------------------------
+   Serve frontend (if bundled)
+----------------------------- */
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const frontendBuildPath = path.join(__dirname, "../frontend/dist");
 
 app.use(express.static(frontendBuildPath));
-
 app.get(/^\/(?!api).*/, (req, res) => {
   res.sendFile(path.join(frontendBuildPath, "index.html"));
 });
 
-/* ---------------------------------
+/* -----------------------------
    Start server
----------------------------------- */
+----------------------------- */
 const startServer = async () => {
   try {
     await connectDB();
-    console.log(chalk.green.bold("✅ Database connected"));
+    console.log(chalk.green.bold("✅ Connected to database"));
 
     app.listen(PORT, () => {
-      console.log(
-        chalk.green.bold(`🚀 Server running on port ${PORT}`)
-      );
+      console.log(chalk.green.bold(`🚀 Server running on port ${PORT}`));
     });
   } catch (error) {
-    console.error(
-      chalk.red.bold("❌ Server failed to start"),
-      error
-    );
+    console.error(chalk.red.bold("❌ Failed to start server"), error);
     process.exit(1);
   }
 };
