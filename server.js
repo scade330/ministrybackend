@@ -16,7 +16,7 @@ const app = express();
 const PORT = process.env.PORT || 8000;
 
 /* ---------------------------------
-   Normalize URLs (safe, optional)
+   Normalize URLs (safe)
 ---------------------------------- */
 app.use((req, res, next) => {
   req.url = req.url.replace(/\/+/g, "/");
@@ -24,7 +24,7 @@ app.use((req, res, next) => {
 });
 
 /* ---------------------------------
-   Debug logging (safe in prod)
+   Debug logging (optional, safe)
 ---------------------------------- */
 app.use((req, res, next) => {
   console.log(`[${req.method}] ${req.url}`);
@@ -39,33 +39,41 @@ app.use(express.json());
 app.use(cookieParser());
 
 /* ---------------------------------
-   CORS (FIXED & VERCEL-SAFE)
+   ✅ CORS — FINAL & VERCEL-SAFE
 ---------------------------------- */
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://ministryfrontend.vercel.app"
+  "https://ministryfrontend.vercel.app",
 ];
 
 const corsOptions = {
   origin: (origin, callback) => {
-    if (!origin) return callback(null, true); // Postman / server-to-server
+    // Allow Postman / server-side / same-origin
+    if (!origin) return callback(null, true);
 
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
 
-    console.log("❌ Blocked by CORS:", origin);
-    return callback(null, false);
+    // ❌ NEVER return false — it removes headers
+    return callback(new Error("Not allowed by CORS"));
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "X-Requested-With",
+    "Accept",
+  ],
 };
 
+/* 🔥 CORS must come BEFORE routes */
 app.use(cors(corsOptions));
 
-/* ✅ Explicit preflight handling (critical for Vercel) */
-app.use(cors(corsOptions));
+/* 🔥 Explicit preflight handling (REQUIRED for Vercel) */
+app.options("*", cors(corsOptions));
+
 /* ---------------------------------
    API routes
 ---------------------------------- */
@@ -103,10 +111,15 @@ const startServer = async () => {
     console.log(chalk.green.bold("✅ Database connected"));
 
     app.listen(PORT, () => {
-      console.log(chalk.green.bold(`🚀 Server running on port ${PORT}`));
+      console.log(
+        chalk.green.bold(`🚀 Server running on port ${PORT}`)
+      );
     });
   } catch (error) {
-    console.error(chalk.red.bold("❌ Server failed to start"), error);
+    console.error(
+      chalk.red.bold("❌ Server failed to start"),
+      error
+    );
     process.exit(1);
   }
 };
