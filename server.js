@@ -16,19 +16,10 @@ const app = express();
 const PORT = process.env.PORT || 8000;
 
 /* ---------------------------------
-   Normalize URLs (safe)
+   Normalize URLs
 ---------------------------------- */
 app.use((req, res, next) => {
   req.url = req.url.replace(/\/+/g, "/");
-  next();
-});
-
-/* ---------------------------------
-   Debug logging (optional, safe)
----------------------------------- */
-app.use((req, res, next) => {
-  console.log(`[${req.method}] ${req.url}`);
-  console.log("Origin:", req.headers.origin);
   next();
 });
 
@@ -39,7 +30,7 @@ app.use(express.json());
 app.use(cookieParser());
 
 /* ---------------------------------
-   ✅ CORS — FINAL & VERCEL-SAFE
+   ✅ CORS — FINAL & SAFE
 ---------------------------------- */
 const allowedOrigins = [
   "http://localhost:5173",
@@ -48,14 +39,12 @@ const allowedOrigins = [
 
 const corsOptions = {
   origin: (origin, callback) => {
-    // Allow Postman / server-side / same-origin
     if (!origin) return callback(null, true);
 
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
 
-    // ❌ NEVER return false — it removes headers
     return callback(new Error("Not allowed by CORS"));
   },
   credentials: true,
@@ -68,11 +57,11 @@ const corsOptions = {
   ],
 };
 
-/* 🔥 CORS must come BEFORE routes */
+/* 🔥 CORS before routes */
 app.use(cors(corsOptions));
 
-/* 🔥 Explicit preflight handling (REQUIRED for Vercel) */
-app.options("*", cors(corsOptions));
+/* 🔥 VALID preflight handler (RegExp — NO CRASH) */
+app.options(/.*/, cors(corsOptions));
 
 /* ---------------------------------
    API routes
