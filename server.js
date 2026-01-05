@@ -26,10 +26,11 @@ const allowedOrigins = [
   "https://ministryfrontend.vercel.app",
 ];
 
-/* ---------------- BASE CORS CONFIG ---------------- */
-const baseCors = {
+/* ---------------- GLOBAL CORS ---------------- */
+const corsOptions = {
   origin: (origin, callback) => {
-    if (!origin) return callback(null, true); // Postman / server-to-server
+    // Allow requests with no origin (Postman, server-to-server)
+    if (!origin) return callback(null, true);
 
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
@@ -40,28 +41,17 @@ const baseCors = {
   },
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true, // allow cookies/auth headers
 };
 
-/* ---------------- PREFLIGHT (EXPRESS 5 SAFE) ---------------- */
-app.use((req, res, next) => {
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(200);
-  }
-  next();
-});
+// ✅ Apply CORS globally
+app.use(cors(corsOptions));
 
-/* ---------------- LOGIN ROUTES (COOKIES) ---------------- */
-/* ✅ credentials REQUIRED */
-app.use(
-  "/api/user",
-  cors({ ...baseCors, credentials: true }),
-  userRouter
-);
+/* ---------------- ROUTES ---------------- */
+// User routes (login requires cookies)
+app.use("/api/user", userRouter);
 
-/* ---------------- JWT ROUTES (NO COOKIES) ---------------- */
-/* ✅ credentials NOT allowed */
-app.use(cors({ ...baseCors, credentials: false }));
-
+// Other routes (patients, dashboard)
 app.use("/api/patientsClinic2", patientRouter);
 app.use("/api/dashboard", dashboardRouter);
 
@@ -79,15 +69,10 @@ const startServer = async () => {
     console.log(chalk.green.bold("✅ Connected to database"));
 
     app.listen(PORT, () => {
-      console.log(
-        chalk.green.bold(`🚀 Server running on port ${PORT}`)
-      );
+      console.log(chalk.green.bold(`🚀 Server running on port ${PORT}`));
     });
   } catch (error) {
-    console.error(
-      chalk.red.bold("❌ Failed to start server"),
-      error
-    );
+    console.error(chalk.red.bold("❌ Failed to start server"), error);
     process.exit(1);
   }
 };
