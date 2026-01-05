@@ -19,16 +19,17 @@ const PORT = process.env.PORT || 8000;
 app.use(express.json());
 app.use(cookieParser());
 
-/* ---------------- CORS (EXPRESS 5 SAFE) ---------------- */
+/* ---------------- ALLOWED ORIGINS ---------------- */
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:3000",
   "https://ministryfrontend.vercel.app",
 ];
 
-const corsOptions = {
+/* ---------------- BASE CORS CONFIG ---------------- */
+const baseCors = {
   origin: (origin, callback) => {
-    if (!origin) return callback(null, true);
+    if (!origin) return callback(null, true); // Postman / server-to-server
 
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
@@ -37,15 +38,11 @@ const corsOptions = {
     console.log(chalk.red("❌ Blocked by CORS:"), origin);
     return callback(new Error("Not allowed by CORS"));
   },
-  credentials: false, // JWT only (no cookies)
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
 };
 
-/* ✅ Apply CORS */
-app.use(cors(corsOptions));
-
-/* ✅ EXPRESS 5–SAFE PREFLIGHT HANDLER */
+/* ---------------- PREFLIGHT (EXPRESS 5 SAFE) ---------------- */
 app.use((req, res, next) => {
   if (req.method === "OPTIONS") {
     return res.sendStatus(200);
@@ -53,8 +50,18 @@ app.use((req, res, next) => {
   next();
 });
 
-/* ---------------- ROUTES ---------------- */
-app.use("/api/user", userRouter);
+/* ---------------- LOGIN ROUTES (COOKIES) ---------------- */
+/* ✅ credentials REQUIRED */
+app.use(
+  "/api/user",
+  cors({ ...baseCors, credentials: true }),
+  userRouter
+);
+
+/* ---------------- JWT ROUTES (NO COOKIES) ---------------- */
+/* ✅ credentials NOT allowed */
+app.use(cors({ ...baseCors, credentials: false }));
+
 app.use("/api/patientsClinic2", patientRouter);
 app.use("/api/dashboard", dashboardRouter);
 
