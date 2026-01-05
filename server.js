@@ -3,8 +3,6 @@ import cookieParser from "cookie-parser";
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import path from "path";
-import { fileURLToPath } from "url";
 
 import connectDB from "./config/db.js";
 import userRouter from "./routes/user.js";
@@ -16,68 +14,54 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 8000;
 
-// Remove duplicate slashes from URLs
-app.use((req, res, next) => {
-  req.url = req.url.replace(/\/+/g, "/");
-  next();
-});
-
-// Logging middleware
-app.use((req, res, next) => {
-  console.log(`Incoming request: ${req.method} ${req.url}`);
-  console.log(`Origin header: ${req.headers.origin}`);
-  next();
-});
-
-// Middleware
+/* ---------------- MIDDLEWARE ---------------- */
 app.use(express.json());
 app.use(cookieParser());
 
-// CORS configuration
+/* ---------------- CORS (SAFE & MODERN) ---------------- */
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://ministryfrontend.vercel.app"
+  "http://localhost:3000",
+  "https://ministryfrontend.vercel.app",
 ];
 
-// Let cors handle everything, including preflight
-app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin) return callback(null, true); // allow non-browser clients (Postman, etc.)
-    if (allowedOrigins.includes(origin)) return callback(null, true);
-    console.log("Blocked by CORS:", origin);
-    return callback(new Error("Not allowed by CORS"));
-  },
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"]
-}));
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
 
-// API routes
+      if (allowedOrigins.some(o => origin.startsWith(o))) {
+        return callback(null, true);
+      }
+
+      console.log(chalk.red("❌ Blocked by CORS:"), origin);
+      return callback(new Error("Not allowed by CORS"));
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+
+/* ---------------- ROUTES ---------------- */
 app.use("/api/user", userRouter);
 app.use("/api/patientsClinic2", patientRouter);
 app.use("/api/dashboard", dashboardRouter);
 
-// Catch-all for invalid API routes
+/* ---------------- 404 HANDLER ---------------- */
 app.use("/api", (req, res) => {
   res.status(404).json({ error: `Route ${req.originalUrl} not found` });
 });
 
-// Serve frontend
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const frontendBuildPath = path.join(__dirname, "../frontend/dist");
-
-app.use(express.static(frontendBuildPath));
-app.get(/^\/(?!api).*/, (req, res) => {
-  res.sendFile(path.join(frontendBuildPath, "index.html"));
-});
-
-// Start server
+/* ---------------- START SERVER ---------------- */
 const startServer = async () => {
   try {
     await connectDB();
     console.log(chalk.green.bold("✅ Connected to database"));
-    app.listen(PORT, () => console.log(chalk.green.bold(`🚀 Server running on port ${PORT}`)));
+
+    app.listen(PORT, () =>
+      console.log(chalk.green.bold(`🚀 Server running on port ${PORT}`))
+    );
   } catch (error) {
     console.error(chalk.red.bold("❌ Failed to start server"), error);
     process.exit(1);
